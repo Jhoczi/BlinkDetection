@@ -8,24 +8,31 @@ import imutils
 import time
 import dlib
 import cv2
-
+# READ ME:
+# Uwazam, ze po pierwszym uruchomieniu w zaleznosci od posiadanej kamerki nalezy sprobować skonfigurować
+# program pod swoj sprzet. W tym celu polecam sprobowac zmodyfikowac wartosci zmiennych
+# EyeArThresh oraz EyeArConsecFrame. Obie zmienne znajduja sie w konstruktorze klasy.
+# INSTRUKCJA URUCHOMIENIA
+# Jezeli chcemy uzyc przykladowego wideo:
+# 1) Zmieniamy w self.InitFaceDetector (linijka 61 ) wartosc arguementu na 1
+# 2) W wierszu poleceń odpalamy program: python BlinkDetection.py --shape-predictor shape_predictor_68_face_landmarks.dat --video freeddie.mp4
+# Jezeli chcemy uzyc kamery:
+# 1) Zmieniamy w self.InitFaceDetector (linijka 61 ) wartosc arguementu na 2
+# 2) W wierszu poleceń odpalamy program: python BlinkDetection.py --shape-predictor shape_predictor_68_face_landmarks.dat
 class BlinkDetection():
     def __init__(self):
-        self.EyeArThresh = 0.28 # Recomennded value: 0.3
-        self.EyeArConsecFrame = 3
+        self.EyeArThresh = 0.30 # Recomennded value: 0.32 for video, 0.31 for camera
+        self.EyeArConsecFrame = 3 # Recomennded value: 3 for video, 3 for camera
         self.COUNTER = 0
         self.TOTAL = 0
     def EyeAspectRatioMethod(self,eye):
         # vertical
         A = dist.euclidean(eye[1], eye[5])
         B = dist.euclidean(eye[2], eye[4])
-
         # horizontal
         C = dist.euclidean(eye[0],eye[3])
-
         # eye aspect ratio
         earCompute = (A + B) / (2.0 * C)
-
         # return the eye aspect ratio:
         return earCompute
     def CreateCommandLineArguments(self):
@@ -49,14 +56,15 @@ class BlinkDetection():
         print("[INFO] loading facial landmark predictor...")
         args = self.CreateCommandLineArguments()
         self.detector = dlib.get_frontal_face_detector()
-        #self.predictor = dlib.shape_predictor(args["shape_predictor"])
-        self.predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+        # READ ME: Zaleceane jezeli chcemy korzystac z roznych predyktorów:
+        self.predictor = dlib.shape_predictor(args["shape_predictor"])
         (self.lStart, self.lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
         (self.rStart, self.rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
-        self.DefineFileType(2,args)
+        self.DefineFileType(fileOption,args)
 
     def Run(self):
-        self.InitFaceDetector(2)
+        # ARGUMENT BELOW DEFINES THE TYPE OF FILE SOURCE:
+        self.InitFaceDetector(1) # 1 - Video | 2 - Camera
         while True:
             # Checking the file video stream
             if self.fileStream and not self.vs.more():
@@ -101,13 +109,14 @@ class BlinkDetection():
             # Show the frame:
             cv2.imshow("Frame", frame)
             key = cv2.waitKey(1)
-            if key == ord("q"):
+            # Close program
+            if key == ord("q") or key == 27:
                 break
         # CLEANUP
-        self.vs.releas()
+        self.vs.release()
         cv2.destroyAllWindows()
         self.vs.stop()
 
-
+# Uruchomienie progrmu:
 bp = BlinkDetection()
 bp.Run()
