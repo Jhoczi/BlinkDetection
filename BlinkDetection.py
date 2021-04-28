@@ -8,6 +8,8 @@ import imutils
 import time
 import dlib
 import cv2
+
+
 # READ ME:
 # Uwazam, ze po pierwszym uruchomieniu w zaleznosci od posiadanej kamerki nalezy sprobować skonfigurować
 # program pod swoj sprzet. W tym celu polecam sprobowac zmodyfikowac wartosci zmiennych
@@ -21,28 +23,31 @@ import cv2
 # 2) W wierszu poleceń odpalamy program: python BlinkDetection.py --shape-predictor shape_predictor_68_face_landmarks.dat
 class BlinkDetection():
     def __init__(self):
-        self.EyeArThresh = 0.35 # Recomennded value: 0.32 for video, 0.31 for camera
-        self.EyeArConsecFrame = 3 # Recomennded value: 3 for video, 3 for camera
+        self.EyeArThresh = 0.35  # Recomennded value: 0.32 for video, 0.31 for camera
+        self.EyeArConsecFrame = 3  # Recomennded value: 3 for video, 3 for camera
         self.COUNTER = 0
         self.TOTAL = 0
         self.initCameraParameters = True
-    def EyeAspectRatioMethod(self,eye):
+
+    def EyeAspectRatioMethod(self, eye):
         # vertical
         A = dist.euclidean(eye[1], eye[5])
         B = dist.euclidean(eye[2], eye[4])
         # horizontal
-        C = dist.euclidean(eye[0],eye[3])
+        C = dist.euclidean(eye[0], eye[3])
         # eye aspect ratio
         earCompute = (A + B) / (2.0 * C)
         # return the eye aspect ratio:
         return earCompute
+
     def CreateCommandLineArguments(self):
         ap = argparse.ArgumentParser()
-        ap.add_argument("-p","--shape-predictor",required=True,help="Path to facial landmark predictor")
-        ap.add_argument("-v", "--video", type=str, default="",help="Path to input video file")
+        ap.add_argument("-p", "--shape-predictor", required=True, help="Path to facial landmark predictor")
+        ap.add_argument("-v", "--video", type=str, default="", help="Path to input video file")
         args = vars(ap.parse_args())
         return args
-    def DefineFileType(self,fileOption,args):
+
+    def DefineFileType(self, fileOption, args):
         # FILE OPTION DEFINES THE TYPE OF FILE SOURCE: 1 - Video | 2 - Camera
         print("[INFO] starting video stream thread...")
         if (fileOption == 1):
@@ -52,7 +57,8 @@ class BlinkDetection():
             self.vs = VideoStream(src=0).start()
             self.fileStream = False
         time.sleep(1.0)
-    def InitFaceDetector(self,fileOption):
+
+    def InitFaceDetector(self, fileOption):
         # FILE OPTION DEFINES THE TYPE OF FILE SOURCE: 1 - Video | 2 - Camera
         print("[INFO] loading facial landmark predictor...")
         args = self.CreateCommandLineArguments()
@@ -61,7 +67,8 @@ class BlinkDetection():
         self.predictor = dlib.shape_predictor(args["shape_predictor"])
         (self.lStart, self.lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
         (self.rStart, self.rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
-        self.DefineFileType(fileOption,args)
+        self.DefineFileType(fileOption, args)
+
     def SetCameraParameters(self):
         self.earOptions = {}
         blinks = 0
@@ -80,7 +87,7 @@ class BlinkDetection():
 
     def Run(self):
         # ARGUMENT BELOW DEFINES THE TYPE OF FILE SOURCE:
-        self.InitFaceDetector(2) # 1 - Video | 2 - Camera
+        self.InitFaceDetector(2)  # 1 - Video | 2 - Camera
         while True:
             # Checking the file video stream
             if self.fileStream and not self.vs.more():
@@ -90,7 +97,7 @@ class BlinkDetection():
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # Detect faces:
-            rects = self.detector(gray,0)
+            rects = self.detector(gray, 0)
 
             for rect in rects:
                 shape = self.predictor(gray, rect)
@@ -107,57 +114,53 @@ class BlinkDetection():
                 # Visualization
                 leftEyeHull = cv2.convexHull(leftEye)
                 rightEyeHull = cv2.convexHull(rightEye)
-                cv2.drawContours(frame, [leftEyeHull], -1, (0,255,0), 1)
-                cv2.drawContours(frame, [rightEyeHull], -1, (0,255,0), 1)
+                cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
+                cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
-                self.blinks = 0
                 self.best = 0
-                #print("[INFO] Mrugnij 10 razy aby ustawic odpowiednio kamere w czasie 10 sekund.")
-                if self.TOTAL < 8:
-                    if self.ear < self.EyeArThresh:
-                        self.COUNTER += 1
-                        #print(self.COUNTER)
-                        if (self.COUNTER > 300):
-                            self.best = self.TOTAL
-                            self.EyeArThresh = round( (self.EyeArThresh - 0.01), 2)
-                            self.COUNTER = 0
-                            self.TOTAL = 0
-                            print("[WARNING] Nie nastapila wymagana liczba mrugniec w czasie!")
-                            print("[WARNING] Zmiana parametru EyeArThresh")
-                    else:
-                        if (self.COUNTER >= self.EyeArConsecFrame):
-                            self.TOTAL += 1
-                        self.COUNTER = 0
-                    # Draw number of blinks and computed EAR for the frame
-                    cv2.putText(frame, "Blinks: {}".format(self.TOTAL), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
-                                    (0, 255, 0), 2)
-                    cv2.putText(frame, "EAR: {:.2f}".format(self.ear), (300, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
-                                    (0, 0, 255), 2)
-                    cv2.putText(frame, "Eye Ar Threash: {:.2f}".format(self.EyeArThresh), (10, 310),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                else:
-                    print("Kalibracja zakonczona.")
-                    print(f'Proponowa wartosc: {self.EyeArThresh}')
-                    break
+                # print("[INFO] Mrugnij 10 razy aby ustawic odpowiednio kamere w czasie 10 sekund.")
 
-                """
-                # Check if the EAR is below the blink threshold
                 if self.ear < self.EyeArThresh:
                     self.COUNTER += 1
                     print(self.COUNTER)
-                    if (self.COUNTER > 1000):
-                        print("[WARNING] KIEROWCA MOGL ZASNAC!")
+                    if (self.COUNTER > 250):
+                        self.best = self.TOTAL
+                        self.EyeArThresh = round((self.EyeArThresh - 0.01), 2)
+                        self.COUNTER = 0
+                        self.TOTAL = 0
+                        print("[WARNING] Nie nastapila wymagana liczba mrugniec w czasie!")
+                        print("[WARNING] Zmiana parametru EyeArThresh")
                 else:
                     if (self.COUNTER >= self.EyeArConsecFrame):
                         self.TOTAL += 1
                     self.COUNTER = 0
-                    
-                    # Draw number of blinks and computed EAR for the frame
-                    cv2.putText(frame,"Blinks: {}".format(self.TOTAL), (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
-                    cv2.putText(frame,"EAR: {:.2f}".format(self.ear), (300,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-                    cv2.putText(frame,"Eye Ar Threash: {:.2f}".format(self.EyeArThresh), (10,310), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-                """
+                # Draw number of blinks and computed EAR for the frame
+                cv2.putText(frame, "Blinks: {}".format(self.TOTAL), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                                (0, 255, 0), 2)
+                cv2.putText(frame, "EAR: {:.2f}".format(self.ear), (300, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                                (0, 0, 255), 2)
+                cv2.putText(frame, "Eye Ar Threash: {:.2f}".format(self.EyeArThresh), (10, 310),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                if self.TOTAL > 8:
+                    print("Kalibracja zakonczona.")
+                    print(f'Proponowa wartosc: {self.EyeArThresh}')
+                    break
 
+                # # Check if the EAR is below the blink threshold
+                # if self.ear < self.EyeArThresh:
+                #     self.COUNTER += 1
+                #     # print(self.COUNTER)
+                #     # if (self.COUNTER > 1000):
+                #     #     print("[WARNING] KIEROWCA MOGL ZASNAC!")
+                # else:
+                #     if (self.COUNTER >= self.EyeArConsecFrame):
+                #         self.TOTAL += 1
+                #     self.COUNTER = 0
+                #
+                # # Draw number of blinks and computed EAR for the frame
+                # cv2.putText(frame,"Blinks: {}".format(self.TOTAL), (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+                # cv2.putText(frame,"EAR: {:.2f}".format(self.ear), (300,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+                # cv2.putText(frame,"Eye Ar Threash: {:.2f}".format(self.EyeArThresh), (10,310), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
 
             # Show the frame:
             cv2.imshow("Frame", frame)
@@ -169,6 +172,7 @@ class BlinkDetection():
         self.vs.release()
         cv2.destroyAllWindows()
         self.vs.stop()
+
 
 # Uruchomienie progrmu:
 bp = BlinkDetection()
