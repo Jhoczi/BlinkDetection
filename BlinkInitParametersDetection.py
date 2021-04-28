@@ -17,6 +17,7 @@ class BlinkDetection():
         self.TOTAL = 0
         self.initCameraParameters = True
         self.earValues = []
+        self.controlCounter = 0
 
     def EyeAspectRatioMethod(self, eye):
         # vertical
@@ -124,6 +125,60 @@ class BlinkDetection():
     def Run(self):
         # ARGUMENT BELOW DEFINES THE TYPE OF FILE SOURCE:
         self.InitFaceDetector(2)  # 1 - Video | 2 - Camera
+        self.control = True
+        # while self.control:
+        #     if self.fileStream and not self.vs.more():
+        #         break
+        #     frame = self.vs.read()
+        #     frame = imutils.resize(frame, width=450)
+        #     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        #     rects = self.detector(gray, 0)
+        #     for rect in rects:
+        #         shape = self.predictor(gray, rect)
+        #         shape = face_utils.shape_to_np(shape)
+        #
+        #         for i in range(0, 100):
+        #             leftWidth1X, leftWidth1Y = shape[36]
+        #             leftWidth2X, leftWidth2Y = shape[39]
+        #
+        #             leftHeight1X, leftHeight1Y = shape[37]
+        #             leftHeight2X, leftHeight2Y = shape[41]
+        #
+        #             leftHeight3X, leftHeight3Y = shape[38]
+        #             leftHeight4X, leftHeight4Y = shape[40]
+        #
+        #             rightWidth1X, rightWidth1Y = shape[42]
+        #             rightWidth2X, rightWidth2Y = shape[45]
+        #
+        #             rightHeight1X, rightHeight1Y = shape[43]
+        #             rightHeight2X, rightHeight2Y = shape[47]
+        #
+        #             rightHeight3X, rightHeight3Y = shape[44]
+        #             rightHeight4X, rightHeight4Y = shape[46]
+        #
+        #             earL = ((leftHeight1Y - leftHeight2Y) + (leftHeight3Y - leftHeight4Y)) / (
+        #                     2 * (leftWidth1X - leftWidth2X))
+        #             earR = ((rightHeight1Y - rightHeight2Y) + (rightHeight3Y - rightHeight4Y)) / (
+        #                     2 * (rightWidth1X - rightWidth2X))
+        #             self.ear = (earL + earR) / 2
+        #
+        #             self.earValues.append(self.ear)
+        #             time.sleep(0.01)
+        #
+        #         self.earValues.sort()
+        #         minEarValues = self.earValues[0:20]
+        #         sum = 0
+        #         for value in minEarValues:
+        #             sum += value
+        #         sum /= len(minEarValues)
+        #         print(f'WARTOSC:{sum}')
+        #         self.EyeArThresh = sum + (sum * 0.1)
+        #         self.control = False
+        #
+        # #self.vs.release()
+        # cv2.destroyAllWindows()
+        # self.vs.stop()
+        # print("[INFO] Koniec inicjalizacji EAR")
         while True:
             # Checking the file video stream
             if self.fileStream and not self.vs.more():
@@ -143,9 +198,48 @@ class BlinkDetection():
                 # rightEye = shape[self.rStart:self.rEnd]
                 # leftEAR = self.EyeAspectRatioMethod(leftEye)
                 # rightEAR = self.EyeAspectRatioMethod(rightEye)
-                if (self.initCameraParameters):
-                    print("[INFO] Zaczynam zliczac")
-                    self.SetCameraParameters(frame,shape)
+
+                if (self.control):
+
+                    leftWidth1X, leftWidth1Y = shape[36]
+                    leftWidth2X, leftWidth2Y = shape[39]
+
+                    leftHeight1X, leftHeight1Y = shape[37]
+                    leftHeight2X, leftHeight2Y = shape[41]
+
+                    leftHeight3X, leftHeight3Y = shape[38]
+                    leftHeight4X, leftHeight4Y = shape[40]
+
+                    rightWidth1X, rightWidth1Y = shape[42]
+                    rightWidth2X, rightWidth2Y = shape[45]
+
+                    rightHeight1X, rightHeight1Y = shape[43]
+                    rightHeight2X, rightHeight2Y = shape[47]
+
+                    rightHeight3X, rightHeight3Y = shape[44]
+                    rightHeight4X, rightHeight4Y = shape[46]
+
+                    earL = ((leftHeight1Y - leftHeight2Y) + (leftHeight3Y - leftHeight4Y)) / (
+                            2 * (leftWidth1X - leftWidth2X))
+                    earR = ((rightHeight1Y - rightHeight2Y) + (rightHeight3Y - rightHeight4Y)) / (
+                            2 * (rightWidth1X - rightWidth2X))
+                    self.ear = (earL + earR) / 2
+
+                    self.earValues.append(self.ear)
+                    time.sleep(0.01)
+                    self.controlCounter += 1
+
+                    if (self.controlCounter > 200):
+                        self.earValues.sort()
+                        print(self.earValues)
+                        minEarValues = self.earValues[0:(int(len(self.earValues) * 0.25))]
+                        sum = 0
+                        for value in minEarValues:
+                            sum += value
+                        sum /= len(minEarValues)
+                        print(f'WARTOSC:{sum}')
+                        self.EyeArThresh = sum + (sum * 0.3)
+                        self.control = False
 
                 leftEye = shape[self.lStart:self.lEnd]
                 rightEye = shape[self.rStart:self.rEnd]
